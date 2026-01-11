@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Link2,
   QrCode,
-  BarChart3,
   Settings,
   LogOut,
   Menu,
@@ -21,6 +20,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Links", href: "/links", icon: Link2 },
   { name: "QR Codes", href: "/qr", icon: QrCode },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {

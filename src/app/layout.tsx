@@ -15,8 +15,45 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LinkQR - Smart QR Codes & URL Shortener",
-  description: "Create branded QR codes, shorten URLs, and track engagement with powerful analytics.",
+  title: {
+    default: "LinkQR - Smart QR Codes & URL Shortener",
+    template: "%s | LinkQR",
+  },
+  description:
+    "Create branded QR codes, shorten URLs, and track engagement with powerful analytics. The all-in-one link management platform for businesses.",
+  keywords: [
+    "QR code generator",
+    "URL shortener",
+    "link analytics",
+    "link management",
+    "branded links",
+    "custom QR codes",
+    "link tracking",
+  ],
+  authors: [{ name: "LinkQR" }],
+  creator: "LinkQR",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  ),
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    title: "LinkQR - Smart QR Codes & URL Shortener",
+    description:
+      "Create branded QR codes, shorten URLs, and track engagement with powerful analytics.",
+    siteName: "LinkQR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LinkQR - Smart QR Codes & URL Shortener",
+    description:
+      "Create branded QR codes, shorten URLs, and track engagement with powerful analytics.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

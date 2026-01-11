@@ -19,6 +19,8 @@ import {
   Hash,
 } from "lucide-react";
 import { LinkAnalyticsChart } from "@/components/dashboard/link-analytics-chart";
+import { AnalyticsPieChart } from "@/components/dashboard/analytics-pie-chart";
+import { AnalyticsBarChart } from "@/components/dashboard/analytics-bar-chart";
 import { QRCodeSection } from "@/components/dashboard/qr-code-section";
 import { CopyButton } from "@/components/dashboard/copy-button";
 
@@ -39,7 +41,7 @@ async function getLink(id: string, userId: string) {
 async function getAnalytics(linkId: string) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const [uniqueIPs, deviceStats, countryStats, clicksByDay] = await Promise.all([
+  const [uniqueIPs, deviceStats, countryStats, browserStats, referrerStats, clicksByDay] = await Promise.all([
     prisma.click.groupBy({
       by: ["ipHash"],
       where: { linkId },
@@ -54,6 +56,20 @@ async function getAnalytics(linkId: string) {
       where: { linkId },
       _count: true,
       orderBy: { _count: { country: "desc" } },
+      take: 5,
+    }),
+    prisma.click.groupBy({
+      by: ["browser"],
+      where: { linkId },
+      _count: true,
+      orderBy: { _count: { browser: "desc" } },
+      take: 5,
+    }),
+    prisma.click.groupBy({
+      by: ["referrer"],
+      where: { linkId },
+      _count: true,
+      orderBy: { _count: { referrer: "desc" } },
       take: 5,
     }),
     prisma.click.groupBy({
@@ -90,6 +106,14 @@ async function getAnalytics(linkId: string) {
     countries: countryStats.map((c) => ({
       name: c.country || "Unknown",
       value: c._count,
+    })),
+    browsers: browserStats.map((b) => ({
+      name: b.browser || "Unknown",
+      value: b._count,
+    })),
+    referrers: referrerStats.map((r) => ({
+      name: r.referrer || "Direct",
+      value: r._count,
     })),
     clicksPerDay: Object.entries(clicksPerDay).map(([date, count]) => ({
       date,
@@ -236,53 +260,32 @@ export default async function LinkDetailPage({
         </div>
       </div>
 
-      {/* Device & Country Breakdown */}
+      {/* Device & Browser Breakdown - Pie Charts */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Devices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {analytics.devices.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No data yet</p>
-            ) : (
-              <div className="space-y-3">
-                {analytics.devices.map((device) => (
-                  <div
-                    key={device.name}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="capitalize">{device.name}</span>
-                    <span className="font-medium">{device.value}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <AnalyticsPieChart
+          title="Devices"
+          data={analytics.devices}
+          emptyMessage="No device data yet"
+        />
+        <AnalyticsPieChart
+          title="Browsers"
+          data={analytics.browsers}
+          emptyMessage="No browser data yet"
+        />
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Countries</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {analytics.countries.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No data yet</p>
-            ) : (
-              <div className="space-y-3">
-                {analytics.countries.map((country) => (
-                  <div
-                    key={country.name}
-                    className="flex items-center justify-between"
-                  >
-                    <span>{country.name}</span>
-                    <span className="font-medium">{country.value}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Countries & Referrers - Bar Charts */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <AnalyticsBarChart
+          title="Top Countries"
+          data={analytics.countries}
+          emptyMessage="No country data yet"
+        />
+        <AnalyticsBarChart
+          title="Top Referrers"
+          data={analytics.referrers}
+          emptyMessage="No referrer data yet"
+        />
       </div>
 
       {/* Link Info */}

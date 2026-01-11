@@ -18,7 +18,8 @@ export const authConfig: NextAuthConfig = {
       const isDashboard =
         nextUrl.pathname.startsWith("/dashboard") ||
         nextUrl.pathname.startsWith("/links") ||
-        nextUrl.pathname.startsWith("/qr");
+        nextUrl.pathname.startsWith("/qr") ||
+        nextUrl.pathname.startsWith("/settings");
 
       // Redirect logged-in users away from auth pages
       if (isLoggedIn && isAuthPage) {
