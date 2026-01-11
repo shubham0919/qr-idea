@@ -1,0 +1,82 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  plan      Plan     @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  links     Link[]
+  qrCodes   QRCode[]
+}
+
+model Link {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  originalUrl String
+  title       String?
+  isActive    Boolean   @default(true)
+  password    String?
+  expiresAt   DateTime?
+  maxClicks   Int?
+  clickCount  Int       @default(0)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  clicks      Click[]
+  qrCode      QRCode?
+
+  @@index([userId])
+  @@index([slug])
+}
+
+model QRCode {
+  id         String   @id @default(cuid())
+  linkId     String   @unique
+  link       Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  foreground String   @default("#000000")
+  background String   @default("#FFFFFF")
+  size       Int      @default(300)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Click {
+  id        String   @id @default(cuid())
+  linkId    String
+  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  ipHash    String
+  country   String?
+  city      String?
+  device    String?
+  browser   String?
+  os        String?
+  referrer  String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([linkId])
+  @@index([createdAt])
+}
