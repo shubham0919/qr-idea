@@ -6,12 +6,40 @@ import { z } from "zod";
 
 const updateLinkSchema = z.object({
   originalUrl: z.string().url("Invalid URL").optional(),
-  title: z.string().optional(),
+  title: z.string().nullable().optional(),
   slug: z.string().optional(),
   password: z.string().nullable().optional(),
   expiresAt: z.string().datetime().nullable().optional(),
   maxClicks: z.number().positive().nullable().optional(),
   isActive: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
+
+  // Time-based restrictions
+  activeFrom: z.string().datetime().nullable().optional(),
+  activeUntil: z.string().datetime().nullable().optional(),
+
+  // IP Restrictions
+  allowedIPs: z.array(z.string()).nullable().optional(),
+  blockedIPs: z.array(z.string()).nullable().optional(),
+
+  // Country Restrictions
+  allowedCountries: z.array(z.string()).nullable().optional(),
+  blockedCountries: z.array(z.string()).nullable().optional(),
+
+  // Device Restrictions
+  allowedDevices: z.array(z.string()).nullable().optional(),
+  blockedDevices: z.array(z.string()).nullable().optional(),
+
+  // Self-destruct
+  selfDestructType: z.enum(["NONE", "AFTER_FIRST_CLICK", "AFTER_N_CLICKS", "AFTER_TIME"]).optional(),
+  selfDestructClicks: z.number().positive().nullable().optional(),
+  selfDestructAt: z.string().datetime().nullable().optional(),
+  destroyRedirectUrl: z.string().url().nullable().optional(),
+
+  // UTM Parameters
+  utmSource: z.string().nullable().optional(),
+  utmMedium: z.string().nullable().optional(),
+  utmCampaign: z.string().nullable().optional(),
 });
 
 export async function GET(
@@ -47,7 +75,16 @@ export async function GET(
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
 
-    return NextResponse.json(link);
+    // Parse JSON fields for response
+    return NextResponse.json({
+      ...link,
+      allowedIPs: link.allowedIPs ? JSON.parse(link.allowedIPs) : null,
+      blockedIPs: link.blockedIPs ? JSON.parse(link.blockedIPs) : null,
+      allowedCountries: link.allowedCountries ? JSON.parse(link.allowedCountries) : null,
+      blockedCountries: link.blockedCountries ? JSON.parse(link.blockedCountries) : null,
+      allowedDevices: link.allowedDevices ? JSON.parse(link.allowedDevices) : null,
+      blockedDevices: link.blockedDevices ? JSON.parse(link.blockedDevices) : null,
+    });
   } catch (error) {
     console.error("Error fetching link:", error);
     return NextResponse.json(
@@ -117,6 +154,29 @@ export async function PATCH(
       }
     }
 
+    // Check plan restrictions for advanced features
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { plan: true },
+    });
+
+    if (user?.plan === "FREE") {
+      if (
+        data.selfDestructType && data.selfDestructType !== "NONE" ||
+        data.allowedIPs?.length ||
+        data.blockedIPs?.length ||
+        data.allowedCountries?.length ||
+        data.blockedCountries?.length ||
+        data.allowedDevices?.length ||
+        data.blockedDevices?.length
+      ) {
+        return NextResponse.json(
+          { error: "Advanced restrictions require Pro plan." },
+          { status: 403 }
+        );
+      }
+    }
+
     const link = await prisma.link.update({
       where: { id },
       data: {
@@ -129,6 +189,52 @@ export async function PATCH(
         }),
         ...(data.maxClicks !== undefined && { maxClicks: data.maxClicks }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(data.isPublic !== undefined && { isPublic: data.isPublic }),
+
+        // Time-based restrictions
+        ...(data.activeFrom !== undefined && {
+          activeFrom: data.activeFrom ? new Date(data.activeFrom) : null,
+        }),
+        ...(data.activeUntil !== undefined && {
+          activeUntil: data.activeUntil ? new Date(data.activeUntil) : null,
+        }),
+
+        // IP Restrictions
+        ...(data.allowedIPs !== undefined && {
+          allowedIPs: data.allowedIPs?.length ? JSON.stringify(data.allowedIPs) : null,
+        }),
+        ...(data.blockedIPs !== undefined && {
+          blockedIPs: data.blockedIPs?.length ? JSON.stringify(data.blockedIPs) : null,
+        }),
+
+        // Country Restrictions
+        ...(data.allowedCountries !== undefined && {
+          allowedCountries: data.allowedCountries?.length ? JSON.stringify(data.allowedCountries) : null,
+        }),
+        ...(data.blockedCountries !== undefined && {
+          blockedCountries: data.blockedCountries?.length ? JSON.stringify(data.blockedCountries) : null,
+        }),
+
+        // Device Restrictions
+        ...(data.allowedDevices !== undefined && {
+          allowedDevices: data.allowedDevices?.length ? JSON.stringify(data.allowedDevices) : null,
+        }),
+        ...(data.blockedDevices !== undefined && {
+          blockedDevices: data.blockedDevices?.length ? JSON.stringify(data.blockedDevices) : null,
+        }),
+
+        // Self-destruct
+        ...(data.selfDestructType !== undefined && { selfDestructType: data.selfDestructType }),
+        ...(data.selfDestructClicks !== undefined && { selfDestructClicks: data.selfDestructClicks }),
+        ...(data.selfDestructAt !== undefined && {
+          selfDestructAt: data.selfDestructAt ? new Date(data.selfDestructAt) : null,
+        }),
+        ...(data.destroyRedirectUrl !== undefined && { destroyRedirectUrl: data.destroyRedirectUrl }),
+
+        // UTM Parameters
+        ...(data.utmSource !== undefined && { utmSource: data.utmSource }),
+        ...(data.utmMedium !== undefined && { utmMedium: data.utmMedium }),
+        ...(data.utmCampaign !== undefined && { utmCampaign: data.utmCampaign }),
       },
     });
 

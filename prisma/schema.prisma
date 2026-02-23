@@ -15,6 +15,19 @@ enum Plan {
   ENTERPRISE
 }
 
+enum SelfDestructType {
+  NONE
+  AFTER_FIRST_CLICK
+  AFTER_N_CLICKS
+  AFTER_TIME
+}
+
+enum QRStyle {
+  SQUARES
+  DOTS
+  ROUNDED
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -33,6 +46,7 @@ model Link {
   originalUrl String
   title       String?
   isActive    Boolean   @default(true)
+  isPublic    Boolean   @default(true)
   password    String?
   expiresAt   DateTime?
   maxClicks   Int?
@@ -44,17 +58,66 @@ model Link {
   clicks      Click[]
   qrCode      QRCode?
 
+  // Time-based restrictions
+  activeFrom  DateTime?
+  activeUntil DateTime?
+
+  // IP Restrictions (JSON arrays stored as strings)
+  allowedIPs   String?  // JSON array of allowed IPs
+  blockedIPs   String?  // JSON array of blocked IPs
+
+  // Country Restrictions
+  allowedCountries String?  // JSON array of allowed country codes
+  blockedCountries String?  // JSON array of blocked country codes
+
+  // Device Restrictions
+  allowedDevices String?  // JSON array: ["mobile", "desktop", "tablet"]
+  blockedDevices String?  // JSON array: ["mobile", "desktop", "tablet"]
+
+  // Self-destruct options
+  selfDestructType   SelfDestructType @default(NONE)
+  selfDestructClicks Int?             // For AFTER_N_CLICKS
+  selfDestructAt     DateTime?        // For AFTER_TIME
+  isDestroyed        Boolean          @default(false)
+  destroyedAt        DateTime?
+  destroyRedirectUrl String?          // Where to redirect after destruction
+
+  // UTM Parameters
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+
   @@index([userId])
   @@index([slug])
+  @@index([isDestroyed])
 }
 
 model QRCode {
   id         String   @id @default(cuid())
   linkId     String   @unique
   link       Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  // Colors
   foreground String   @default("#000000")
   background String   @default("#FFFFFF")
+
+  // Style
+  style      QRStyle  @default(SQUARES)
   size       Int      @default(300)
+  margin     Int      @default(4)
+
+  // Logo
+  logoUrl    String?
+  logoSize   Int      @default(50)  // Percentage of QR size
+
+  // Frame
+  frameText  String?
+  frameColor String?
+
+  // Corner styles
+  cornerSquareStyle String?  // "square", "dot", "extra-rounded"
+  cornerDotStyle    String?  // "square", "dot"
+
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
@@ -75,8 +138,30 @@ model Click {
   os        String?
   referrer  String?
   userAgent String?
+
+  // UTM tracking
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+
+  // Bot detection
+  isBot     Boolean  @default(false)
+
   createdAt DateTime @default(now())
 
   @@index([linkId])
   @@index([createdAt])
+  @@index([ipHash, linkId])  // For duplicate detection
+}
+
+// Rate limiting store
+model RateLimit {
+  id         String   @id @default(cuid())
+  identifier String   // IP or user ID
+  endpoint   String   // API endpoint
+  count      Int      @default(1)
+  windowStart DateTime @default(now())
+
+  @@unique([identifier, endpoint])
+  @@index([windowStart])
 }
